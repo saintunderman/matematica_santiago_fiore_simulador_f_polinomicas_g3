@@ -12,8 +12,15 @@
     <script>
         MathJax = {
             tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
-            svg: { fontCache: 'global' }
+            svg: { fontCache: 'global' },
+            startup: {
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                    window.mathJaxReady = true;
+                }
+            }
         };
+        window.mathJaxReady = false;
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 
@@ -106,45 +113,64 @@
         .step-title { font-weight: 700; color: var(--heading-color); margin-bottom: 0.5rem; display: block; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
         .step-content { font-family: 'Fira Code', monospace; }
 
-        #graph-wrapper { text-align: center; }
-        #dynamicGraphContainer { max-width: 400px; margin: 0 auto; position: relative; }
         .dynamic-svg { width: 100%; height: auto; border: 1px solid var(--border-color); border-radius: 8px; background-color: #fafbfd; animation: breathe 0.5s ease-out; }
         @keyframes breathe { from { opacity: 0.5; } to { opacity: 1; } }
         .svg-grid { stroke: var(--border-color); stroke-width: 0.5; }
         .svg-axis { stroke: var(--text-color); stroke-width: 1; }
         .svg-curve { stroke: var(--accent-color); stroke-width: 2.5; fill: none; }
-        .svg-root { fill: var(--error-color); stroke: var(--surface-color); stroke-width: 1.5; }
+        .svg-root { 
+            fill: var(--error-color); 
+            stroke: var(--surface-color); 
+            stroke-width: 1.5; 
+            transition: r 0.2s ease, fill 0.2s ease;
+        }
+        .svg-root:hover { r: 5; fill: #c53030; }
         .svg-text { font-size: 10px; fill: var(--text-color); font-family: 'Inter', sans-serif; }
         .svg-root-label { font-size: 11px; fill: var(--error-color); font-weight: 500; font-family: 'Fira Code', monospace; }
         .svg-root-leader-line { stroke: var(--error-color); stroke-width: 1; stroke-dasharray: 2,2; }
-
-        .btn-amplify {
-            margin-top: 1rem; padding: 0.6rem 1.2rem; background-color: var(--accent-color); color: white;
-            border: none; border-radius: 8px; cursor: pointer; font-weight: 500;
-            transition: background-color 0.2s;
+        
+        .graph-controls {
+            display: flex; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+            padding: 1rem; background-color: var(--bg-color); border-radius: 8px;
         }
-        .btn-amplify:hover { background-color: var(--accent-hover); }
-
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center;
-            z-index: 1000; animation: fadeIn 0.3s ease;
+        .control-group {
+            display: flex; align-items: center;
         }
-        .modal-overlay.active { display: flex; }
-        .modal-content {
-            background: var(--surface-color); padding: 2rem; border-radius: 12px;
-            width: 90%; max-width: 850px; max-height: 90vh; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            position: relative; display: flex; flex-direction: column;
+        .control-group label {
+            display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
+            font-weight: 500; color: var(--text-color);
         }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .modal-title { font-size: 1.5rem; color: var(--heading-color); }
-        .modal-close-btn {
-            background: none; border: none; font-size: 2rem; color: var(--text-color);
-            cursor: pointer; line-height: 1; padding: 0.5rem;
+        .checkbox-input {
+            width: 18px; height: 18px; cursor: pointer;
+            accent-color: var(--accent-color);
         }
-        #modalGraphContainer { flex-grow: 1; min-height: 0; }
-        #modalGraphContainer .dynamic-svg { width: 100%; height: auto; }
+        
+        .svg-derivative { 
+            stroke: var(--success-color); 
+            stroke-width: 2; 
+            fill: none; 
+            stroke-dasharray: 5,5;
+        }
+        .svg-critical-point { 
+            fill: var(--warning-color); 
+            stroke: var(--surface-color); 
+            stroke-width: 2;
+        }
+        .svg-curve-concave-up {
+            stroke: #3182ce;
+            stroke-width: 2.5;
+            fill: none;
+        }
+        .svg-curve-concave-down {
+            stroke: #ed8936;
+            stroke-width: 2.5;
+            fill: none;
+        }
+        .svg-inflection-point {
+            fill: #9f7aea;
+            stroke: var(--surface-color);
+            stroke-width: 2;
+        }
 
         footer {
             text-align: center;
@@ -170,6 +196,10 @@
             .calculator-layout {
                 grid-template-columns: 1fr; /* Apila los paneles de entrada y resultados */
             }
+            
+            .graph-controls {
+                gap: 1rem;
+            }
         }
         
         /* Para móviles */
@@ -182,9 +212,13 @@
             }
             .tabs {
                 flex-wrap: wrap; /* Permite que las pestañas pasen a la siguiente línea */
+                overflow-x: auto;
             }
             .tab-button {
-                flex-basis: 50%; /* Dos pestañas por fila */
+                flex-basis: auto; /* Ajuste automático */
+                flex-shrink: 0;
+                padding: 0.8rem 1rem;
+                font-size: 0.9rem;
             }
             .card {
                 padding: 1.5rem; /* Menos padding dentro de las tarjetas */
@@ -192,9 +226,20 @@
             .modal-content {
                 padding: 1rem; /* Menos padding dentro del modal */
                 width: 95%; /* Ocupa casi toda la pantalla */
+                max-height: 95vh;
             }
             .modal-title {
                 font-size: 1.2rem;
+            }
+            #modalGraphContainer {
+                min-height: 250px;
+                max-height: 60vh;
+                overflow: auto;
+            }
+            
+            .graph-controls {
+                flex-direction: column;
+                gap: 0.8rem;
             }
         }
 
@@ -216,6 +261,7 @@
 
         <nav class="tabs">
             <button class="tab-button active" data-tab="calculator">Calculadora</button>
+            <button class="tab-button" data-tab="visualization">Visualización</button>
             <button class="tab-button" data-tab="theory">Teoría</button>
             <button class="tab-button" data-tab="history">Historia</button>
             <button class="tab-button" data-tab="examples">Ejemplos</button>
@@ -231,19 +277,19 @@
                         <div id="error-message-a" class="result-item error" style="display:none;">'a' no puede ser cero.</div>
                         <div class="slider-group">
                             <label for="sliderA">Coeficiente a: <span id="valueA">1</span></label>
-                            <input type="range" id="sliderA" class="slider" min="-5" max="5" step="0.1" value="1">
+                            <input type="range" id="sliderA" class="slider" min="-5" max="5" step="0.1" value="1" aria-label="Coeficiente a de la ecuación cúbica" aria-valuemin="-5" aria-valuemax="5" aria-valuenow="1">
                         </div>
                         <div class="slider-group">
                             <label for="sliderB">Coeficiente b: <span id="valueB">0</span></label>
-                            <input type="range" id="sliderB" class="slider" min="-10" max="10" step="0.1" value="0">
+                            <input type="range" id="sliderB" class="slider" min="-10" max="10" step="0.1" value="0" aria-label="Coeficiente b de la ecuación cúbica" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0">
                         </div>
                         <div class="slider-group">
                             <label for="sliderC">Coeficiente c: <span id="valueC">-3</span></label>
-                            <input type="range" id="sliderC" class="slider" min="-10" max="10" step="0.1" value="-3">
+                            <input type="range" id="sliderC" class="slider" min="-10" max="10" step="0.1" value="-3" aria-label="Coeficiente c de la ecuación cúbica" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="-3">
                         </div>
                         <div class="slider-group">
                             <label for="sliderD">Coeficiente d: <span id="valueD">1</span></label>
-                            <input type="range" id="sliderD" class="slider" min="-10" max="10" step="0.1" value="1">
+                            <input type="range" id="sliderD" class="slider" min="-10" max="10" step="0.1" value="1" aria-label="Coeficiente d de la ecuación cúbica" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="1">
                         </div>
                         <h3>Ecuación Actual:</h3>
                         <div id="currentEquation"></div>
@@ -254,35 +300,58 @@
                             <div id="discriminantDisplay" class="result-item"></div>
                             <div id="caseDescription" class="result-item"></div>
                             <h3>Raíces</h3>
-                            <div id="rootsDisplay"></div>
-                        </div>
-                         <div class="card">
-                            <h3>Gráfico de la Función</h3>
-                            <div id="graph-wrapper">
-                                <div id="dynamicGraphContainer"></div>
-                                <button id="amplifyGraphBtn" class="btn-amplify">Ampliar Gráfico</button>
-                            </div>
+                            <div id="rootsDisplay" aria-live="polite" aria-atomic="true"></div>
                         </div>
                     </div>
                 </div>
                 <div class="card" id="stepByStep"></div>
             </div>
             
+            <!-- Visualización -->
+            <div id="visualization" class="tab-content">
+                <div class="card">
+                    <h3>Gráfico Interactivo de la Función Cúbica</h3>
+                    <div id="graphInfoDisplay" class="result-item" style="border-color: var(--info-color); background-color: #ebf8ff; margin-bottom: 1.5rem;">
+                        <span>Ecuación actual: <strong id="graphEquation"></strong></span>
+                    </div>
+                    
+                    <div class="graph-controls">
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="showDerivative" class="checkbox-input">
+                                Mostrar derivada f'(x)
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="showCriticalPoints" class="checkbox-input" checked>
+                                Mostrar puntos críticos
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="showGrid" class="checkbox-input" checked>
+                                Mostrar cuadrícula
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="showConcavity" class="checkbox-input">
+                                Mostrar cambio de concavidad
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="largeGraphContainer" style="max-width: 100%; margin: 2rem auto;"></div>
+                    
+                    <div id="criticalPointsInfo"></div>
+                </div>
+            </div>
+            
             <div id="theory" class="tab-content"></div>
             <div id="history" class="tab-content"></div>
             <div id="examples" class="tab-content"></div>
         </main>
-    </div>
-
-    <!-- Estructura del Modal -->
-    <div id="graphModal" class="modal-overlay">
-        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-            <div class="modal-header">
-                <h2 id="modalTitle" class="modal-title">Gráfico Detallado</h2>
-                <button id="closeModalBtn" class="modal-close-btn" aria-label="Cerrar">&times;</button>
-            </div>
-            <div id="modalGraphContainer"></div>
-        </div>
     </div>
     
     <footer>
@@ -296,13 +365,22 @@
         const sliders = {};
         const valueSpans = {};
         const state = { a: 1, b: 0, c: -3, d: 1, solution: {} };
-        const EPSILON = 1e-9;
+        const EPSILON = 1e-10;
+        const DISC_THRESHOLD = 1e-12; // Threshold mejorado para discriminante cercano a cero
+        let updatePending = false;
+        let mathJaxTimeout = null;
+        let graphSettings = {
+            showDerivative: false,
+            showCriticalPoints: true,
+            showGrid: true,
+            showConcavity: false
+        };
 
         // --- UI INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
             initializeTabs();
             initializeSliders();
-            initializeModal();
+            initializeGraphControls();
             fillStaticContent();
             updateAll();
         });
@@ -313,41 +391,110 @@
                 if (button) showTab(button.dataset.tab);
             });
         }
+        
+        function initializeGraphControls() {
+            const controls = {
+                showDerivative: document.getElementById('showDerivative'),
+                showCriticalPoints: document.getElementById('showCriticalPoints'),
+                showGrid: document.getElementById('showGrid'),
+                showConcavity: document.getElementById('showConcavity')
+            };
+            
+            Object.keys(controls).forEach(key => {
+                if (controls[key]) {
+                    controls[key].addEventListener('change', (e) => {
+                        graphSettings[key] = e.target.checked;
+                        updateVisualizationTab();
+                    });
+                }
+            });
+        }
 
         function initializeSliders() {
             ['A', 'B', 'C', 'D'].forEach(coeff => {
                 sliders[coeff] = document.getElementById(`slider${coeff}`);
                 valueSpans[coeff] = document.getElementById(`value${coeff}`);
                 sliders[coeff].addEventListener('input', (e) => {
-                    valueSpans[coeff].textContent = e.target.value;
-                    const percent = (e.target.value - e.target.min) / (e.target.max - e.target.min) * 100;
+                    const newValue = parseFloat(e.target.value);
+                    valueSpans[coeff].textContent = newValue;
+                    
+                    // Actualizar atributos ARIA
+                    e.target.setAttribute('aria-valuenow', newValue);
+                    
+                    const percent = (newValue - e.target.min) / (e.target.max - e.target.min) * 100;
                     e.target.style.background = `linear-gradient(to right, #4299e1 ${percent}%, #e2e8f0 ${percent}%)`;
-                    requestAnimationFrame(updateAll);
+                    if (!updatePending) {
+                        updatePending = true;
+                        requestAnimationFrame(() => {
+                            updateAll();
+                            updatePending = false;
+                        });
+                    }
                 });
                 sliders[coeff].dispatchEvent(new Event('input'));
             });
         }
-
-        function initializeModal() {
-            const modal = document.getElementById('graphModal');
-            const openBtn = document.getElementById('amplifyGraphBtn');
-            const closeBtn = document.getElementById('closeModalBtn');
-
-            openBtn.addEventListener('click', () => {
-                modal.classList.add('active');
-                drawDynamicGraph(
-                    document.getElementById('modalGraphContainer'), 
-                    state.a, state.b, state.c, state.d, state.solution.roots,
-                    { width: 800, height: 600, padding: 50 }
-                );
-            });
-
-            const closeModal = () => modal.classList.remove('active');
-            closeBtn.addEventListener('click', closeModal);
-            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-            document.addEventListener('keydown', (e) => { if (e.key === "Escape" && modal.classList.contains('active')) closeModal(); });
+        
+        // --- HELPER FUNCTIONS ---
+        
+        function checkSmallCoefficientA(a) {
+            const warningDiv = document.getElementById('small-a-warning');
+            if (!warningDiv) {
+                // Crear el div de advertencia si no existe
+                const div = document.createElement('div');
+                div.id = 'small-a-warning';
+                div.className = 'result-item';
+                div.style.cssText = 'border-color: var(--warning-color); background-color: #fffaf0; display: none; margin-bottom: 1rem; font-size: 0.9rem;';
+                document.querySelector('.results-panel .card').insertBefore(div, document.querySelector('.results-panel .card').firstChild);
+            }
+            
+            const warning = document.getElementById('small-a-warning');
+            if (Math.abs(a) < 0.5 && Math.abs(a) >= 1e-6) {
+                warning.innerHTML = '<span><strong>⚠️ Advertencia:</strong> Con |a| < 0.5, la función pierde su carácter cúbico predominante en el rango visible.</span>';
+                warning.style.display = 'flex';
+            } else {
+                warning.style.display = 'none';
+            }
         }
         
+        // Función optimizada para generar path SVG
+        function generatePath(points, mapX, mapY) {
+            if (points.length === 0) return "";
+            return points.reduce((acc, p, i) => {
+                const x = mapX(p.x).toFixed(2);
+                const y = mapY(p.y).toFixed(2);
+                return acc + `${i === 0 ? 'M' : 'L'} ${x} ${y} `;
+            }, "");
+        }
+        
+        // --- HELPER: VERIFICACIÓN DE VIETA ---
+        function verifyVieta(roots, a, b, c, d) {
+            if (roots.length !== 3) return null;
+            const [x1, x2, x3] = roots;
+            const sum = x1 + x2 + x3;
+            const sumPairs = x1*x2 + x1*x3 + x2*x3;
+            const product = x1*x2*x3;
+            
+            const expectedSum = -b/a;
+            const expectedPairs = c/a;
+            const expectedProduct = -d/a;
+            
+            const errorSum = Math.abs(sum - expectedSum);
+            const errorPairs = Math.abs(sumPairs - expectedPairs);
+            const errorProduct = Math.abs(product - expectedProduct);
+            
+            // Error residual máximo
+            const maxError = Math.max(errorSum, errorPairs, errorProduct);
+            
+            return {
+                sum, expectedSum, errorSum,
+                sumPairs, expectedPairs, errorPairs,
+                product, expectedProduct, errorProduct,
+                maxError,
+                isValid: errorSum < 1e-6 && errorPairs < 1e-6 && errorProduct < 1e-6
+            };
+        }
+
         // --- CORE LOGIC ---
         function updateAll() {
             state.a = parseFloat(sliders.A.value);
@@ -356,50 +503,93 @@
             state.d = parseFloat(sliders.D.value);
             
             const errorMessageA = document.getElementById('error-message-a');
-            if (Math.abs(state.a) < EPSILON) {
+            if (Math.abs(state.a) < 1e-6) {
                 errorMessageA.style.display = 'flex';
                 return;
             } else {
                 errorMessageA.style.display = 'none';
             }
             
+            // Aviso cuando 'a' es pequeño (pierde carácter cúbico)
+            checkSmallCoefficientA(state.a);
+            
             state.solution = solveCubic(state.a, state.b, state.c, state.d);
             
-            displayEquation(state.a, state.b, state.c, state.d);
-            displayResults(state.solution);
-            drawDynamicGraph(
-                document.getElementById('dynamicGraphContainer'), 
-                state.a, state.b, state.c, state.d, state.solution.roots,
-                { width: 400, height: 300, padding: 30 }
-            );
+            // 1. Actualización inmediata de contenido no-MathJax
+            renderNonMathContent();
             
-            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
-                MathJax.typesetPromise();
+            // 2. Debounce para MathJax (espera a que el usuario termine de mover el slider)
+            clearTimeout(mathJaxTimeout);
+            mathJaxTimeout = setTimeout(() => {
+                if (window.mathJaxReady && window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                    MathJax.typesetPromise().catch((err) => console.warn('MathJax rendering error:', err));
+                }
+            }, 150);
+            
+            // 3. Actualizar pestaña de visualización si está activa
+            const visualizationTab = document.getElementById('visualization');
+            if (visualizationTab && visualizationTab.classList.contains('active')) {
+                updateVisualizationTab();
             }
         }
         
+        function renderNonMathContent() {
+            displayEquation(state.a, state.b, state.c, state.d);
+            displayResults(state.solution);
+        }
+        
         function solveCubic(a, b, c, d) {
-            const p = (3 * a * c - b * b) / (3 * a * a);
-            const q = (2 * b**3 - 9 * a * b * c + 27 * a * a * d) / (27 * a**3);
-            const discriminant = -4 * p**3 - 27 * q**2;
-            const results = { p, q, discriminant, roots: [], complex_roots: [] };
-            if (Math.abs(discriminant) < EPSILON) {
-                results.case = 'Raíces Múltiples (\\(\\Delta \\approx 0\\))';
-                results.roots = Math.abs(p) < EPSILON ? [-b/(3*a), -b/(3*a), -b/(3*a)] : [(3*q/p)-(b/(3*a)), (-3*q/(2*p))-(b/(3*a)), (-3*q/(2*p))-(b/(3*a))];
-            } else if (discriminant > 0) {
-                results.case = 'Tres Raíces Reales (\\(\\Delta > 0\\))';
-                const arg = Math.max(-1, Math.min(1, (3 * q) / (2 * p) * Math.sqrt(-3 / p)));
-                const theta = Math.acos(arg);
-                for (let k = 0; k < 3; k++) { results.roots.push(2 * Math.sqrt(-p / 3) * Math.cos((theta + 2 * Math.PI * k) / 3) - b / (3 * a)); }
-            } else {
-                results.case = 'Una Raíz Real, Dos Complejas (\\(\\Delta < 0\\))';
-                const term = Math.sqrt(-discriminant / 108);
-                const u = Math.cbrt(-q / 2 + term);
-                const v = Math.cbrt(-q / 2 - term);
-                results.roots.push(u + v - b / (3 * a));
-                const real_part = -(u + v) / 2 - b / (3 * a), imag_part = (u - v) * Math.sqrt(3) / 2;
-                if (Math.abs(imag_part) > EPSILON) { results.complex_roots.push({ real: real_part, imag: imag_part }); }
+            // Validaciones
+            if (!isFinite(a) || !isFinite(b) || !isFinite(c) || !isFinite(d)) {
+                return { p: 0, q: 0, discriminant: 0, case: 'Error: Coeficientes inválidos', roots: [], complex_roots: [] };
             }
+            if (Math.abs(a) < EPSILON) {
+                return { p: 0, q: 0, discriminant: 0, case: 'Error: a = 0', roots: [], complex_roots: [] };
+            }
+            
+            // Normalización: x^3 + Ax^2 + Bx + C = 0
+            const A = b / a;
+            const B = c / a;
+            const C = d / a;
+
+            // Coeficientes de la forma reducida y^3 + py + q = 0
+            const p = B - (A * A) / 3;
+            const q = (2 * A * A * A) / 27 - (A * B) / 3 + C;
+            const disc = (q * q) / 4 + (p * p * p) / 27;
+
+            const results = { p, q, discriminant: -108 * disc, roots: [], complex_roots: [] };
+            const offset = A / 3;
+
+            // Usar threshold mejorado para discriminante cercano a cero
+            if (Math.abs(disc) < DISC_THRESHOLD) {
+                // Raíces múltiples (forzar caso para evitar errores de redondeo)
+                const r = Math.cbrt(-q / 2);
+                results.roots = [2 * r - offset, -r - offset, -r - offset];
+                results.case = 'Raíces Múltiples (\\(\\Delta \\approx 0\\))';
+            }
+            else if (disc > DISC_THRESHOLD) { 
+                // Una raíz real, dos complejas
+                const u = Math.cbrt(-q / 2 + Math.sqrt(disc));
+                const v = Math.cbrt(-q / 2 - Math.sqrt(disc));
+                results.roots.push(u + v - offset);
+                results.complex_roots.push({
+                    real: -(u + v) / 2 - offset,
+                    imag: (Math.sqrt(3) / 2) * (u - v)
+                });
+                results.case = 'Una Raíz Real, Dos Complejas (\\(\\Delta < 0\\))';
+            }
+            else { 
+                // Tres raíces reales (Casus Irreductibilis)
+                const r = Math.sqrt(-p / 3);
+                const phi = Math.acos(-q / (2 * r * r * r));
+                results.roots = [
+                    2 * r * Math.cos(phi / 3) - offset,
+                    2 * r * Math.cos((phi + 2 * Math.PI) / 3) - offset,
+                    2 * r * Math.cos((phi + 4 * Math.PI) / 3) - offset
+                ];
+                results.case = 'Tres Raíces Reales (\\(\\Delta > 0\\))';
+            }
+            
             results.roots.sort((x, y) => x - y);
             return results;
         }
@@ -409,17 +599,132 @@
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             document.querySelector(`.tab-button[data-tab="${tabName}"]`).classList.add('active');
+            
+            // Actualizar gráfico grande cuando se accede a visualización
+            if (tabName === 'visualization') {
+                updateVisualizationTab();
+            }
+        }
+        
+        function updateVisualizationTab() {
+            if (state.solution && state.solution.roots) {
+                document.getElementById('graphEquation').textContent = 
+                    `f(x) = ${state.a}x³ + ${state.b}x² + ${state.c}x + ${state.d}`;
+                
+                drawAdvancedGraph(
+                    document.getElementById('largeGraphContainer'),
+                    state.a, state.b, state.c, state.d, 
+                    state.solution.roots,
+                    { width: 900, height: 600, padding: 60 }
+                );
+                
+                displayCriticalPointsInfo();
+            }
+        }
+        
+        function displayCriticalPointsInfo() {
+            const a = state.a, b = state.b, c = state.c;
+            const crit_delta = (2 * b) ** 2 - 4 * (3 * a) * c;
+            
+            let html = '<h3>Información de Puntos Críticos</h3>';
+            
+            if (crit_delta < 0) {
+                html += '<p>La función no tiene puntos críticos (derivada siempre creciente o decreciente).</p>';
+            } else if (Math.abs(crit_delta) < EPSILON) {
+                const x = -2 * b / (6 * a);
+                const y = state.a * x**3 + state.b * x**2 + state.c * x + state.d;
+                html += `<div class="result-item" style="border-color: var(--warning-color); background-color: #fffaf0;">
+                    <span><strong>Punto de inflexión:</strong> (${x.toFixed(4)}, ${y.toFixed(4)})</span>
+                </div>`;
+            } else {
+                const x1 = (-2 * b + Math.sqrt(crit_delta)) / (6 * a);
+                const x2 = (-2 * b - Math.sqrt(crit_delta)) / (6 * a);
+                const y1 = state.a * x1**3 + state.b * x1**2 + state.c * x1 + state.d;
+                const y2 = state.a * x2**3 + state.b * x2**2 + state.c * x2 + state.d;
+                
+                // Determinar si es máximo o mínimo
+                const d2_x1 = 6 * a * x1 + 2 * b; // Segunda derivada
+                const d2_x2 = 6 * a * x2 + 2 * b;
+                
+                html += `<div class="result-item" style="border-color: var(--warning-color); background-color: #fffaf0;">
+                    <span><strong>${d2_x1 < 0 ? 'Máximo' : 'Mínimo'} local:</strong> (${x1.toFixed(4)}, ${y1.toFixed(4)})</span>
+                </div>`;
+                html += `<div class="result-item" style="border-color: var(--warning-color); background-color: #fffaf0;">
+                    <span><strong>${d2_x2 < 0 ? 'Máximo' : 'Mínimo'} local:</strong> (${x2.toFixed(4)}, ${y2.toFixed(4)})</span>
+                </div>`;
+            }
+            
+            // Información sobre concavidad y punto de inflexión
+            if (graphSettings.showConcavity) {
+                const x_inflection = -b / (3 * a);
+                const y_inflection = state.a * x_inflection**3 + state.b * x_inflection**2 + state.c * x_inflection + state.d;
+                
+                html += '<h3 style="margin-top: 1.5rem;">Análisis de Concavidad</h3>';
+                html += `<div class="result-item" style="border-color: #9f7aea; background-color: #faf5ff;">
+                    <span><strong>Punto de inflexión (f''(x) = 0):</strong> (${x_inflection.toFixed(4)}, ${y_inflection.toFixed(4)})</span>
+                </div>`;
+                
+                const d2f = x => 6 * a * x + 2 * b;
+                if (a > 0) {
+                    html += `<p style="margin-top: 0.5rem; font-size: 0.95rem;">
+                        • <strong style="color: #ed8936;">Cóncava hacia abajo (∩)</strong> para x < ${x_inflection.toFixed(4)}<br>
+                        • <strong style="color: #3182ce;">Cóncava hacia arriba (∪)</strong> para x > ${x_inflection.toFixed(4)}
+                    </p>`;
+                } else {
+                    html += `<p style="margin-top: 0.5rem; font-size: 0.95rem;">
+                        • <strong style="color: #3182ce;">Cóncava hacia arriba (∪)</strong> para x < ${x_inflection.toFixed(4)}<br>
+                        • <strong style="color: #ed8936;">Cóncava hacia abajo (∩)</strong> para x > ${x_inflection.toFixed(4)}
+                    </p>`;
+                }
+            }
+            
+            document.getElementById('criticalPointsInfo').innerHTML = html;
         }
 
         function displayEquation(a, b, c, d) {
-            const format = (v, t, f) => { if (Math.abs(v) < EPSILON) return ''; const s = f ? (v < 0 ? '-' : '') : (v < 0 ? ' - ' : ' + '); const av = Math.abs(v); const n = av.toFixed(1).replace(/\.0$/, ''); return (Math.abs(av - 1) < EPSILON && t) ? `${s}${t}` : `${s}${n}${t}`; };
-            document.getElementById('currentEquation').innerHTML = `\\[${(format(a,'x^3',1) + format(b,'x^2',0) + format(c,'x',0) + format(d,'',0)).trim()} = 0\\]`;
+            const format = (value, term, isFirst) => {
+                if (Math.abs(value) < EPSILON) return '';
+                
+                const sign = isFirst ? (value < 0 ? '-' : '') : (value < 0 ? ' - ' : ' + ');
+                const absValue = Math.abs(value);
+                const coefficient = absValue.toFixed(1).replace(/\.0$/, '');
+                
+                // Si el coeficiente es 1 y hay un término (no es término independiente)
+                if (Math.abs(absValue - 1) < EPSILON && term) return `${sign}${term}`;
+                
+                return `${sign}${coefficient}${term}`;
+            };
+            
+            const eq = format(a, 'x^3', true) + 
+                      format(b, 'x^2', false) + 
+                      format(c, 'x', false) + 
+                      format(d, '', false);
+            
+            document.getElementById('currentEquation').innerHTML = `\\[${eq.trim() || '0'} = 0\\]`;
         }
 
-        function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+        function gcd(a, b) { 
+            a = Math.abs(a);
+            b = Math.abs(b);
+            if (b === 0) return a === 0 ? 1 : a;
+            return gcd(b, a % b);
+        }
         function formatExactValue(num) {
-            if (Math.abs(num) < EPSILON) return '0'; if (Math.abs(num - Math.round(num)) < EPSILON) return Math.round(num).toString();
-            for (let d = 2; d <= 32; d++) { if (Math.abs(num * d - Math.round(num * d)) < EPSILON) { const n = Math.round(num * d), c = gcd(Math.abs(n), d); return `${n/c}/${d/c}`; } } return num.toFixed(8);
+            if (Math.abs(num) < EPSILON) return '0';
+            if (Math.abs(num - Math.round(num)) < EPSILON) return Math.round(num).toString();
+            
+            // Intentar encontrar una fracción simple
+            for (let d = 2; d <= 32; d++) {
+                const numerator = Math.round(num * d);
+                if (Math.abs(num * d - numerator) < EPSILON * 10) {
+                    const commonDivisor = gcd(Math.abs(numerator), d);
+                    const simplifiedNum = numerator / commonDivisor;
+                    const simplifiedDen = d / commonDivisor;
+                    if (simplifiedDen === 1) return simplifiedNum.toString();
+                    return `${simplifiedNum}/${simplifiedDen}`;
+                }
+            }
+            return num.toFixed(8).replace(/\.?0+$/, '');
         }
 
         function displayResults(res) {
@@ -428,54 +733,122 @@
             document.getElementById('discriminantDisplay').innerHTML = `<span><strong>Discriminante:</strong> \\(\\Delta = ${formatExactValue(res.discriminant)}\\)</span><span class="approx-value">≈ ${res.discriminant.toFixed(2)}</span>`;
             document.getElementById('caseDescription').className = `result-item result-discriminant ${discClass}`;
             document.getElementById('caseDescription').innerHTML = `<strong>Caso:</strong> ${res.case}`;
+            
             let rootsHTML = '';
             res.roots.forEach((r, i) => { rootsHTML += `<div class="result-item"><span>\\(x_{${i+1}} = ${formatExactValue(r)}\\)</span><span class="approx-value">≈ ${r.toFixed(2)}</span></div>`; });
             res.complex_roots.forEach(cr => { rootsHTML += `<div class="result-item"><span>\\(x_{2,3} = ${formatExactValue(cr.real)} \\pm ${formatExactValue(Math.abs(cr.imag))}i\\)</span><span class="approx-value">≈ ${cr.real.toFixed(2)} ± ${Math.abs(cr.imag).toFixed(2)}i</span></div>`; });
             document.getElementById('rootsDisplay').innerHTML = rootsHTML;
+            
+            // Verificación de Vieta con error residual
+            const vieta = verifyVieta(res.roots, state.a, state.b, state.c, state.d);
+            let vietaHTML = '';
+            if (vieta && vieta.isValid) {
+                const errorExponent = Math.floor(Math.log10(vieta.maxError));
+                vietaHTML = `<div class="result-item" style="border-color: var(--success-color); background-color: #f0fff4; font-size: 0.9rem;">
+                    <span><strong>✓ Verificación de Vieta:</strong> Las raíces son correctas</span>
+                    <span class="approx-value">Error residual: ε < 10<sup>${errorExponent}</sup></span>
+                </div>`;
+            }
+            document.getElementById('rootsDisplay').innerHTML += vietaHTML;
+            
             document.getElementById('stepByStep').innerHTML = `<h3>Resolución Paso a Paso</h3><div class="step"><span class="step-title">1: Reducción</span><div class="step-content">\\(x = y - b/3a\\) produce \\(y^3+py+q=0\\).<br>\\(p ≈ ${res.p.toFixed(4)}\\), \\(q ≈ ${res.q.toFixed(4)}\\)</div></div><div class="step"><span class="step-title">2: Discriminante</span><div class="step-content">\\(\\Delta = -4p^3 - 27q^2 ≈ ${res.discriminant.toFixed(4)}\\).</div></div><div class="step"><span class="step-title">3: Solución</span><div class="step-content">Se usa la fórmula general para hallar \\(y\\), y luego \\(x\\).</div></div>`;
         }
         
         function drawDynamicGraph(container, a, b, c, d, roots, options = {}) {
             const { width: W = 400, height: H = 300, padding: P = 30 } = options;
             
-            const f = x => a*x**3 + b*x**2 + c*x + d;
+            // Validación de inputs
+            if (!isFinite(a) || !isFinite(b) || !isFinite(c) || !isFinite(d)) {
+                container.innerHTML = '<p style="text-align:center; color:var(--error-color);">Error: Coeficientes inválidos</p>';
+                return;
+            }
             
-            const crit_delta = (2*b)**2 - 4*(3*a)*c, crit_points = [];
-            if (crit_delta >= 0) { crit_points.push((-2*b + Math.sqrt(crit_delta))/(6*a), (-2*b - Math.sqrt(crit_delta))/(6*a)); }
+            const f = x => a * x**3 + b * x**2 + c * x + d;
             
+            // Calcular puntos críticos (derivada = 0)
+            const crit_delta = (2 * b)**2 - 4 * (3 * a) * c;
+            const crit_points = [];
+            if (crit_delta >= 0) { 
+                crit_points.push(
+                    (-2 * b + Math.sqrt(crit_delta)) / (6 * a), 
+                    (-2 * b - Math.sqrt(crit_delta)) / (6 * a)
+                ); 
+            }
+            
+            // Determinar rango X basado en raíces y puntos críticos
             const all_points = [...roots, ...crit_points, 0];
-            let x_min = Math.min(...all_points), x_max = Math.max(...all_points);
+            let x_min = Math.min(...all_points);
+            let x_max = Math.max(...all_points);
             const range = x_max - x_min;
-            if (range < 1 || !isFinite(range)) { x_min = -5; x_max = 5; } else { x_min -= range * 0.3; x_max += range * 0.3; }
             
+            if (range < 1 || !isFinite(range)) { 
+                x_min = -5; 
+                x_max = 5; 
+            } else { 
+                x_min -= range * 0.3; 
+                x_max += range * 0.3; 
+            }
+            
+            // Calcular puntos de la curva
             const plot_points = [];
             let y_min = Infinity, y_max = -Infinity;
-            const num_plot_points = Math.max(200, W / 2);
+            const num_plot_points = Math.max(Math.min(W, 300), 150); // Optimizado
+            
             for (let i = 0; i <= num_plot_points; i++) {
-                const x = x_min + i * (x_max - x_min) / num_plot_points, y = f(x);
-                if (isFinite(y)) { y_min = Math.min(y_min, y); y_max = Math.max(y_max, y); plot_points.push({x, y}); }
+                const x = x_min + i * (x_max - x_min) / num_plot_points;
+                const y = f(x);
+                if (isFinite(y)) { 
+                    y_min = Math.min(y_min, y); 
+                    y_max = Math.max(y_max, y); 
+                    plot_points.push({x, y}); 
+                }
             }
-            if (!isFinite(y_min)) { y_min = -10; y_max = 10; }
+            
+            if (!isFinite(y_min)) { 
+                y_min = -10; 
+                y_max = 10; 
+            }
+            
             const y_range = y_max - y_min;
-            if (y_range < 1) { y_min -= 2; y_max += 2; } else { y_min -= y_range * 0.2; y_max += y_range * 0.2; }
+            if (y_range < 1) { 
+                y_min -= 2; 
+                y_max += 2; 
+            } else { 
+                y_min -= y_range * 0.2; 
+                y_max += y_range * 0.2; 
+            }
 
+            // Funciones de mapeo
             const mapX = x => P + (x - x_min) / (x_max - x_min) * (W - 2 * P);
             const mapY = y => (H - P) - (y - y_min) / (y_max - y_min) * (H - 2 * P);
             
+            // Construir SVG
             let svg = `<svg viewBox="0 0 ${W} ${H}" class="dynamic-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfico de la función cúbica">`;
+            
+            // Grid
             for (let i = 1; i < 10; i++) {
-                svg += `<line class="svg-grid" x1="${P+i*(W-2*P)/10}" y1="${P}" x2="${P+i*(W-2*P)/10}" y2="${H-P}"/>`;
-                svg += `<line class="svg-grid" x1="${P}" y1="${P+i*(H-2*P)/10}" x2="${W-P}" y2="${P+i*(H-2*P)/10}"/>`;
+                svg += `<line class="svg-grid" x1="${P + i * (W - 2*P) / 10}" y1="${P}" x2="${P + i * (W - 2*P) / 10}" y2="${H - P}"/>`;
+                svg += `<line class="svg-grid" x1="${P}" y1="${P + i * (H - 2*P) / 10}" x2="${W - P}" y2="${P + i * (H - 2*P) / 10}"/>`;
             }
+            
+            // Ejes
             const originX = mapX(0), originY = mapY(0);
-            if(originX >= P && originX <= W-P) svg += `<line class="svg-axis" x1="${originX}" y1="${P}" x2="${originX}" y2="${H-P}"/>`;
-            if(originY >= P && originY <= H-P) svg += `<line class="svg-axis" x1="${P}" y1="${originY}" x2="${W-P}" y2="${originY}"/>`;
+            if (originX >= P && originX <= W - P) {
+                svg += `<line class="svg-axis" x1="${originX}" y1="${P}" x2="${originX}" y2="${H - P}"/>`;
+            }
+            if (originY >= P && originY <= H - P) {
+                svg += `<line class="svg-axis" x1="${P}" y1="${originY}" x2="${W - P}" y2="${originY}"/>`;
+            }
 
+            // Curva
             if (plot_points.length > 1) {
-                const path_data = plot_points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${mapX(p.x)} ${mapY(p.y)}`).join(' ');
+                const path_data = plot_points.map((p, i) => 
+                    `${i === 0 ? 'M' : 'L'} ${mapX(p.x).toFixed(2)} ${mapY(p.y).toFixed(2)}`
+                ).join(' ');
                 svg += `<path class="svg-curve" d="${path_data}"/>`;
             }
             
+            // Raíces y etiquetas (con detección de colisiones mejorada)
             const renderedLabels = [];
             const labelHeight = 18;
             const labelPadding = 4;
@@ -483,43 +856,318 @@
             roots.forEach((r) => {
                 if (originY >= P && originY <= H - P) {
                     const rootX = mapX(r);
-                    svg += `<circle class="svg-root" cx="${rootX}" cy="${originY}" r="4"/>`;
+                    svg += `<circle class="svg-root" cx="${rootX.toFixed(2)}" cy="${originY.toFixed(2)}" r="4"/>`;
                     
                     const labelText = r.toFixed(2);
                     const labelWidth = labelText.length * 7;
                     let targetY = originY - 10;
                     
+                    // Buscar posición sin colisiones
                     let attempts = 0;
-                    while(attempts < 6) {
+                    while (attempts < 6) {
                         let collision = false;
                         for (const placed of renderedLabels) {
-                            if (rootX < placed.x + placed.width + labelPadding && rootX + labelWidth > placed.x - labelPadding && targetY < placed.y + labelHeight && targetY + labelHeight > placed.y) {
-                                collision = true; break;
+                            if (rootX < placed.x + placed.width + labelPadding && 
+                                rootX + labelWidth > placed.x - labelPadding && 
+                                targetY < placed.y + labelHeight && 
+                                targetY + labelHeight > placed.y) {
+                                collision = true; 
+                                break;
                             }
                         }
                         if (!collision) break;
 
+                        // Intentar diferentes posiciones
                         if (attempts === 0) targetY = originY + 20;
                         else if (attempts === 1) targetY = originY - 25;
                         else if (attempts === 2) targetY = originY + 35;
                         else {
-                           targetY = (attempts % 2 === 0) ? originY - 15 - (attempts*3) : originY + 25 + (attempts*3);
-                           svg += `<line class="svg-root-leader-line" x1="${rootX}" y1="${originY}" x2="${rootX}" y2="${targetY - (targetY > originY ? 5 : -5)}"/>`;
-                           break;
+                            targetY = (attempts % 2 === 0) ? originY - 15 - (attempts * 3) : originY + 25 + (attempts * 3);
+                            svg += `<line class="svg-root-leader-line" x1="${rootX.toFixed(2)}" y1="${originY.toFixed(2)}" x2="${rootX.toFixed(2)}" y2="${(targetY - (targetY > originY ? 5 : -5)).toFixed(2)}"/>`;
+                            break;
                         }
                         attempts++;
                     }
 
-                    svg += `<text class="svg-root-label" x="${rootX}" y="${targetY}" text-anchor="middle">${labelText}</text>`;
+                    svg += `<text class="svg-root-label" x="${rootX.toFixed(2)}" y="${targetY.toFixed(2)}" text-anchor="middle">${labelText}</text>`;
                     renderedLabels.push({ x: rootX - labelWidth / 2, y: targetY - labelHeight / 2, width: labelWidth, height: labelHeight });
                 }
             });
 
-            svg += `<text class="svg-text" x="${P}" y="${H-P+12}" text-anchor="start">${x_min.toFixed(1)}</text>`;
-            svg += `<text class="svg-text" x="${W-P}" y="${H-P+12}" text-anchor="end">${x_max.toFixed(1)}</text>`;
-            svg += `<text class="svg-text" x="${P-5}" y="${P+4}" text-anchor="end">${y_max.toFixed(1)}</text>`;
-            svg += `<text class="svg-text" x="${P-5}" y="${H-P}" text-anchor="end">${y_min.toFixed(1)}</text>`;
+            // Etiquetas de ejes
+            svg += `<text class="svg-text" x="${P}" y="${H - P + 12}" text-anchor="start">${x_min.toFixed(1)}</text>`;
+            svg += `<text class="svg-text" x="${W - P}" y="${H - P + 12}" text-anchor="end">${x_max.toFixed(1)}</text>`;
+            svg += `<text class="svg-text" x="${P - 5}" y="${P + 4}" text-anchor="end">${y_max.toFixed(1)}</text>`;
+            svg += `<text class="svg-text" x="${P - 5}" y="${H - P}" text-anchor="end">${y_min.toFixed(1)}</text>`;
             svg += `</svg>`;
+            
+            container.innerHTML = svg;
+        }
+        
+        function drawAdvancedGraph(container, a, b, c, d, roots, options = {}) {
+            const { width: W = 900, height: H = 600, padding: P = 60 } = options;
+            
+            // Validación de inputs
+            if (!isFinite(a) || !isFinite(b) || !isFinite(c) || !isFinite(d)) {
+                container.innerHTML = '<p style="text-align:center; color:var(--error-color);">Error: Coeficientes inválidos</p>';
+                return;
+            }
+            
+            const f = x => a * x**3 + b * x**2 + c * x + d;
+            const df = x => 3 * a * x**2 + 2 * b * x + c; // Derivada
+            
+            // Calcular puntos críticos
+            const crit_delta = (2 * b)**2 - 4 * (3 * a) * c;
+            const crit_points = [];
+            if (crit_delta >= 0) { 
+                crit_points.push(
+                    (-2 * b + Math.sqrt(crit_delta)) / (6 * a), 
+                    (-2 * b - Math.sqrt(crit_delta)) / (6 * a)
+                ); 
+            }
+            
+            // Determinar rango X con zoom inteligente
+            const all_points = [...roots, ...crit_points, 0];
+            let x_min = Math.min(...all_points);
+            let x_max = Math.max(...all_points);
+            let range = x_max - x_min;
+            
+            // Zoom inteligente: si el rango es muy pequeño, considerar la curvatura
+            if (range < 0.1 && isFinite(range)) {
+                // Rango demasiado pequeño, ajustar basado en la magnitud de los coeficientes
+                const scale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c)) / Math.abs(a);
+                const expansion = Math.max(2, scale * 0.5);
+                const center = (x_min + x_max) / 2;
+                x_min = center - expansion;
+                x_max = center + expansion;
+                range = x_max - x_min;
+            } else if (range < 1 || !isFinite(range)) { 
+                x_min = -5; 
+                x_max = 5; 
+            } else { 
+                x_min -= range * 0.3; 
+                x_max += range * 0.3; 
+            }
+            
+            // Calcular puntos de las curvas
+            const plot_points = [];
+            const deriv_points = [];
+            let y_min = Infinity, y_max = -Infinity;
+            const num_plot_points = Math.max(Math.min(W, 400), 200);
+            
+            for (let i = 0; i <= num_plot_points; i++) {
+                const x = x_min + i * (x_max - x_min) / num_plot_points;
+                const y = f(x);
+                const dy = df(x);
+                
+                if (isFinite(y)) { 
+                    y_min = Math.min(y_min, y); 
+                    y_max = Math.max(y_max, y); 
+                    plot_points.push({x, y}); 
+                }
+                
+                if (graphSettings.showDerivative && isFinite(dy)) {
+                    deriv_points.push({x, y: dy});
+                }
+            }
+            
+            // Ajustar rango Y para incluir derivada si es necesario
+            if (graphSettings.showDerivative) {
+                deriv_points.forEach(p => {
+                    if (isFinite(p.y)) {
+                        y_min = Math.min(y_min, p.y);
+                        y_max = Math.max(y_max, p.y);
+                    }
+                });
+            }
+            
+            if (!isFinite(y_min)) { 
+                y_min = -10; 
+                y_max = 10; 
+            }
+            
+            const y_range = y_max - y_min;
+            if (y_range < 1) { 
+                y_min -= 2; 
+                y_max += 2; 
+            } else { 
+                y_min -= y_range * 0.2; 
+                y_max += y_range * 0.2; 
+            }
+
+            // Funciones de mapeo
+            const mapX = x => P + (x - x_min) / (x_max - x_min) * (W - 2 * P);
+            const mapY = y => (H - P) - (y - y_min) / (y_max - y_min) * (H - 2 * P);
+            
+            // Construir SVG
+            let svg = `<svg viewBox="0 0 ${W} ${H}" class="dynamic-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfico interactivo de la función cúbica" style="max-width: 100%; height: auto;">`;
+            
+            // Grid (opcional)
+            if (graphSettings.showGrid) {
+                for (let i = 1; i < 20; i++) {
+                    svg += `<line class="svg-grid" x1="${P + i * (W - 2*P) / 20}" y1="${P}" x2="${P + i * (W - 2*P) / 20}" y2="${H - P}"/>`;
+                    svg += `<line class="svg-grid" x1="${P}" y1="${P + i * (H - 2*P) / 20}" x2="${W - P}" y2="${P + i * (H - 2*P) / 20}"/>`;
+                }
+            }
+            
+            // Ejes
+            const originX = mapX(0), originY = mapY(0);
+            if (originX >= P && originX <= W - P) {
+                svg += `<line class="svg-axis" x1="${originX}" y1="${P}" x2="${originX}" y2="${H - P}"/>`;
+                svg += `<text class="svg-text" x="${originX}" y="${P - 10}" text-anchor="middle" style="font-weight: 600;">y</text>`;
+            }
+            if (originY >= P && originY <= H - P) {
+                svg += `<line class="svg-axis" x1="${P}" y1="${originY}" x2="${W - P}" y2="${originY}"/>`;
+                svg += `<text class="svg-text" x="${W - P + 10}" y="${originY}" text-anchor="start" style="font-weight: 600;">x</text>`;
+            }
+
+            // Curva de la derivada (si está activada)
+            if (graphSettings.showDerivative && deriv_points.length > 1) {
+                const deriv_path = generatePath(deriv_points, mapX, mapY);
+                svg += `<path class="svg-derivative" d="${deriv_path}"/>`;
+                
+                // Leyenda para derivada
+                svg += `<text x="${W - P - 10}" y="${P + 25}" text-anchor="end" style="fill: var(--success-color); font-size: 12px; font-weight: 600;">f'(x)</text>`;
+            }
+
+            // Curva principal con visualización de concavidad
+            if (plot_points.length > 1) {
+                if (graphSettings.showConcavity) {
+                    // Punto de inflexión: x = -b/(3a), donde f''(x) = 0
+                    const x_inflection = -b / (3 * a);
+                    const y_inflection = f(x_inflection);
+                    const d2f = x => 6 * a * x + 2 * b; // Segunda derivada
+                    
+                    // Dividir puntos en cóncavos hacia arriba y hacia abajo
+                    const concave_up = [];
+                    const concave_down = [];
+                    let inflection_point = null;
+                    
+                    plot_points.forEach((p, i) => {
+                        // Verificar si estamos cerca del punto de inflexión
+                        if (i > 0 && plot_points[i-1].x <= x_inflection && p.x >= x_inflection && !inflection_point) {
+                            // Agregar el punto de inflexión exacto a ambos segmentos
+                            inflection_point = {x: x_inflection, y: y_inflection};
+                            
+                            if (d2f(plot_points[i-1].x) > 0) {
+                                concave_up.push(plot_points[i-1]);
+                                concave_up.push(inflection_point);
+                                concave_down.push(inflection_point);
+                                concave_down.push(p);
+                            } else {
+                                concave_down.push(plot_points[i-1]);
+                                concave_down.push(inflection_point);
+                                concave_up.push(inflection_point);
+                                concave_up.push(p);
+                            }
+                        } else {
+                            if (d2f(p.x) > 0) {
+                                concave_up.push(p);
+                            } else {
+                                concave_down.push(p);
+                            }
+                        }
+                    });
+                    
+                    // Dibujar segmentos con colores diferentes
+                    if (concave_up.length > 1) {
+                        const path_up = generatePath(concave_up, mapX, mapY);
+                        svg += `<path class="svg-curve-concave-up" d="${path_up}"/>`;
+                    }
+                    if (concave_down.length > 1) {
+                        const path_down = generatePath(concave_down, mapX, mapY);
+                        svg += `<path class="svg-curve-concave-down" d="${path_down}"/>`;
+                    }
+                    
+                    // Marcar punto de inflexión
+                    if (x_inflection >= x_min && x_inflection <= x_max) {
+                        const infX = mapX(x_inflection);
+                        const infY = mapY(f(x_inflection));
+                        if (infX >= P && infX <= W - P && infY >= P && infY <= H - P) {
+                            svg += `<circle class="svg-inflection-point" cx="${infX.toFixed(2)}" cy="${infY.toFixed(2)}" r="6"/>`;
+                            
+                            // Etiqueta con fondo
+                            const labelText = `Inflexión: (${x_inflection.toFixed(2)}, ${f(x_inflection).toFixed(2)})`;
+                            const labelWidth = labelText.length * 6;
+                            const labelHeight = 16;
+                            const labelX = infX;
+                            const labelY = infY - 20;
+                            
+                            svg += `<rect x="${(labelX - labelWidth/2 - 2).toFixed(2)}" y="${(labelY - labelHeight + 2).toFixed(2)}" width="${labelWidth + 4}" height="${labelHeight}" fill="white" fill-opacity="0.9" rx="3"/>`;
+                            svg += `<text x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="middle" style="fill: #9f7aea; font-size: 11px; font-weight: 600;">${labelText}</text>`;
+                        }
+                    }
+                    
+                    // Leyendas
+                    svg += `<text x="${W - P - 10}" y="${P + 10}" text-anchor="end" style="fill: #3182ce; font-size: 12px; font-weight: 600;">f(x) cóncava ↑</text>`;
+                    svg += `<text x="${W - P - 10}" y="${P + 25}" text-anchor="end" style="fill: #ed8936; font-size: 12px; font-weight: 600;">f(x) cóncava ↓</text>`;
+                } else {
+                    // Curva normal sin diferenciación de concavidad
+                    const path_data = generatePath(plot_points, mapX, mapY);
+                    svg += `<path class="svg-curve" d="${path_data}"/>`;
+                    
+                    // Leyenda para función
+                    svg += `<text x="${W - P - 10}" y="${P + 10}" text-anchor="end" style="fill: var(--accent-color); font-size: 12px; font-weight: 600;">f(x)</text>`;
+                }
+            }
+            
+            // Puntos críticos (si están activados)
+            if (graphSettings.showCriticalPoints && crit_points.length > 0) {
+                crit_points.forEach(cp => {
+                    const cpX = mapX(cp);
+                    const cpY = mapY(f(cp));
+                    if (cpX >= P && cpX <= W - P && cpY >= P && cpY <= H - P) {
+                        svg += `<circle class="svg-critical-point" cx="${cpX.toFixed(2)}" cy="${cpY.toFixed(2)}" r="5"/>`;
+                        svg += `<text class="svg-text" x="${cpX.toFixed(2)}" y="${(cpY - 15).toFixed(2)}" text-anchor="middle" style="fill: var(--warning-color); font-size: 11px; font-weight: 600;">(${cp.toFixed(2)}, ${f(cp).toFixed(2)})</text>`;
+                    }
+                });
+            }
+            
+            // Raíces con fondos para mejor legibilidad
+            const renderedLabels = [];
+            roots.forEach((r) => {
+                if (originY >= P && originY <= H - P) {
+                    const rootX = mapX(r);
+                    if (rootX >= P && rootX <= W - P) {
+                        svg += `<circle class="svg-root" cx="${rootX.toFixed(2)}" cy="${originY.toFixed(2)}" r="5"/>`;
+                        
+                        // Etiqueta con fondo semitransparente para mejor legibilidad
+                        const labelText = `x=${r.toFixed(3)}`;
+                        const labelWidth = labelText.length * 6.5;
+                        const labelHeight = 16;
+                        const labelX = rootX;
+                        const labelY = originY - 12;
+                        
+                        // Rectángulo de fondo semitransparente
+                        svg += `<rect x="${(labelX - labelWidth/2 - 2).toFixed(2)}" y="${(labelY - labelHeight + 2).toFixed(2)}" width="${labelWidth + 4}" height="${labelHeight}" fill="white" fill-opacity="0.85" rx="3"/>`;
+                        svg += `<text class="svg-root-label" x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="middle">${labelText}</text>`;
+                    }
+                }
+            });
+
+            // Etiquetas de ejes con más detalle
+            const numLabels = 10;
+            for (let i = 0; i <= numLabels; i++) {
+                const x_val = x_min + i * (x_max - x_min) / numLabels;
+                const mapXval = mapX(x_val);
+                if (i % 2 === 0 && Math.abs(x_val) > 0.01) { // Solo etiquetas pares y no en origen
+                    svg += `<text class="svg-text" x="${mapXval}" y="${H - P + 20}" text-anchor="middle">${x_val.toFixed(1)}</text>`;
+                }
+                
+                const y_val = y_min + i * (y_max - y_min) / numLabels;
+                const mapYval = mapY(y_val);
+                if (i % 2 === 0 && Math.abs(y_val) > 0.01) {
+                    svg += `<text class="svg-text" x="${P - 10}" y="${mapYval + 4}" text-anchor="end">${y_val.toFixed(1)}</text>`;
+                }
+            }
+            
+            // Origen
+            if (originX >= P && originX <= W - P && originY >= P && originY <= H - P) {
+                svg += `<text class="svg-text" x="${originX - 10}" y="${originY + 15}" text-anchor="end" style="font-weight: 600;">0</text>`;
+            }
+            
+            svg += `</svg>`;
+            
             container.innerHTML = svg;
         }
 
