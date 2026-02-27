@@ -17,13 +17,6 @@ Una herramienta interactiva, visual y educativa diseñada para explorar en profu
 - **Contexto Histórico:** Una línea de tiempo que recorre los duelos matemáticos del Renacimiento italiano entre Cardano, Tartaglia y Del Ferro.
 - **Diseño Adaptativo (Responsive):** Optimizado para su uso en computadoras, tablets y dispositivos móviles.
 
-## Tecnologías Utilizadas
-
-- **HTML5 & CSS3:** Interfaz moderna basada en variables CSS, Flexbox y Grid.
-- **JavaScript (Vanilla):** Lógica matemática personalizada para la resolución de raíces reales y complejas sin dependencias externas.
-- **MathJax 3:** Para un renderizado impecable de fórmulas matemáticas en formato LaTeX.
-- **SVG Dinámico:** Generación de gráficos vectoriales que mantienen la nitidez en cualquier nivel de zoom.
-
 ## Cómo usarlo
 
 No requiere instalación. Acceso al Simulador: https://saintunderman.github.io/matematica_santiago_fiore_simulador_f_polinomicas_g3/
