@@ -26,7 +26,7 @@ Una herramienta interactiva, visual y educativa diseñada para explorar en profu
 
 ## Cómo usarlo
 
-Acceso al Simulador: https://saintunderman.github.io/matematica_santiago_fiore_simulador_f_polinomicas_g3/
+No requiere instalación. Acceso al Simulador: https://saintunderman.github.io/matematica_santiago_fiore_simulador_f_polinomicas_g3/
 
 ## Casos de Estudio Incluidos
 
@@ -34,4 +34,12 @@ El simulador permite experimentar directamente con ejemplos preconfigurados:
 - **Una raíz real:** Casos donde el discriminante es negativo ($$\Delta < 0$$).
 - **Raíces múltiples:** Cuando la curva es tangente al eje $$x$$ ($$\Delta = 0$$).
 - **Tres raíces reales:** Exploración del método trigonométrico para resolver el caso irreductible.
+
+## Licencia y Créditos
+
+Desarrollado por **Santiago Fiore**.
+
+* **Sitio Web:** https://sites.google.com/view/santiago-fiore/portada
+* **Licencia:** Creative Commons CC BY-NC-SA 4.0 (Atribución-NoComercial-CompartirIgual).
+
 
